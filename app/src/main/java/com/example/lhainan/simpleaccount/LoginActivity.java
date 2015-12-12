@@ -32,6 +32,11 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.io.DataOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -86,6 +91,16 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             public void onClick(View view) {
                 loginview = view;
                 attemptLogin();
+            }
+        });
+        TextView registerView = (TextView)findViewById(R.id.register_button);
+        registerView.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
+                //intent.putExtra(ItemDetailFragment.ARG_ITEM_ID, "login");
+                Log.v("login to register", "here");
+                startActivity(intent);
             }
         });
 
@@ -270,23 +285,94 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         protected Boolean doInBackground(Void... params) {
             // TODO: attempt authentication against a network service.
 
-            try {
-                // Simulate network access.
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
-            }
+
             Log.v("inBack", "doInBackgound");
+            try {
+                return requestByPost(mEmail, mPassword);
+            } catch (Throwable throwable) {
+
+                throwable.printStackTrace();
+            }
+            /*
             for (String credential :DUMMY_CREDENTIALS) {
                 Log.v("inBack", credential);
                 String[] pieces = credential.split(":");
                 if (pieces[0].equals(mEmail)) {
                     // Account exists, return true if the password matches.
-                    return pieces[1].equals(mPassword);
+                    return n pieces[1].equals(mPassword);
                 }
             }
-
+            */
             // TODO: register the new account here.
+            return false;
+        }
+        private String btoString(byte[] b){
+            StringBuffer sb = new StringBuffer();
+            for(int i = 0; i < b.length; i ++){
+                sb.append(b[i]);
+            }
+            return sb.toString();
+        }
+        private boolean requestByPost(String name, String passwd) throws Throwable {
+            String path = "http://1.xiaomiaoding.sinaapp.com/login.php";
+// 请求的参数转换为byte数组
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            sha1.update(passwd.getBytes());
+            byte[] sha1sum = sha1.digest();
+            String params = "Name="+ name
+                    + "&Password="+ btoString(sha1sum);
+            Log.v("params", params);
+            byte[] postData = params.getBytes();
+// 新建一个URL对象
+            URL url = new URL(path);
+// 打开一个HttpURLConnection连接
+            HttpURLConnection urlConn = (HttpURLConnection) url.openConnection();
+// 设置连接超时时间
+            urlConn.setConnectTimeout(5 * 1000);
+// Post请求必须设置允许输出
+            urlConn.setDoOutput(true);
+// Post请求不能使用缓存
+            urlConn.setUseCaches(false);
+// 设置为Post请求
+            urlConn.setRequestMethod("POST");
+            urlConn.setInstanceFollowRedirects(true);
+// 配置请求Content-Type
+ //           urlConn.setRequestProperty("Content-Type",
+ //                   "application/x-www-form-urlencode");
+// 开始连接
+            urlConn.connect();
+// 发送请求参数
+            DataOutputStream dos = new DataOutputStream(urlConn.getOutputStream());
+            dos.write(postData);
+            dos.flush();
+            dos.close();
+// 判断请求是否成功
+            if (urlConn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+// 获取返回的数据
+                byte[] data = new byte[100];
+                for (int i = 0; i < data.length; i++) {
+                    data[i] = 0;
+                }
+                //Log.v("content", urlConn.getContentEncoding());
+                int len = urlConn.getInputStream().read(data);
+                byte[] rdata = new byte[len];
+                for (int i = 0; i < rdata.length; i++) {
+                    rdata[i] = data[i];
+                }
+                String response = new String(rdata, "UTF-8");
+                Log.v("http error", response);
+                urlConn.disconnect();
+                if (response.equals("0"))
+                    return false;
+                else if (response.equals("1"))
+                    return true;
+
+            } else {
+                Log.v("http error", ""+urlConn.getResponseCode());
+                urlConn.disconnect();
+                return false;
+            }
+            urlConn.disconnect();
             return false;
         }
 
@@ -295,6 +381,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             mAuthTask = null;
             showProgress(false);
             Log.v("onPostExecute", success.toString());
+
             if (success) {
                 finish();
                 //Context context = loginview.getContext();
@@ -314,5 +401,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             showProgress(false);
         }
     }
+
+
 }
 
